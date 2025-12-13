@@ -92,15 +92,15 @@ async def delete_user(
     return None
 
 
-@router.post("/{user_id}/deactivate", response_model=UserResponse)
-async def deactivate_user(
-    user_id: int,
-    db: Session = Depends(get_db),
-    current_user: User = Depends(get_current_active_superuser)
-):
-    """
-    Деактивация пользователя (только для суперпользователей)
-    """
-    auth_service = AuthService(db)
-    return auth_service.deactivate_user(user_id)
-
+# @router.post("/{user_id}/deactivate", response_model=UserResponse)
+# async def deactivate_user(
+#     user_id: int,
+#     db: Session = Depends(get_db),
+#     current_user: User = Depends(get_current_active_superuser)
+# ):
+#     """
+#     Деактивация пользователя (только для суперпользователей)
+#     """
+#     auth_service = AuthService(db)
+#     return auth_service.deactivate_user(user_id)
+#
