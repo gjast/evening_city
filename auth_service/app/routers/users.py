@@ -1,9 +1,10 @@
 from typing import List
+from decimal import Decimal
 from fastapi import APIRouter, Depends, HTTPException, status
 from sqlalchemy.orm import Session
 
 from app.db.database import get_db
-from app.schemas.user import UserResponse, UserUpdate
+from app.schemas.user import UserResponse, UserUpdate, BalanceOperation, BalanceResponse
 from app.services.auth import AuthService
 from app.services.security import get_current_user, get_current_active_superuser
 from app.models.user import User
@@ -92,15 +93,63 @@ async def delete_user(
     return None
 
 
-# @router.post("/{user_id}/deactivate", response_model=UserResponse)
-# async def deactivate_user(
-#     user_id: int,
-#     db: Session = Depends(get_db),
-#     current_user: User = Depends(get_current_active_superuser)
-# ):
-#     """
-#     Деактивация пользователя (только для суперпользователей)
-#     """
-#     auth_service = AuthService(db)
-#     return auth_service.deactivate_user(user_id)
+@router.post("/balance/deposit", response_model=BalanceResponse)
+async def deposit_balance(
+    operation: BalanceOperation,
+    db: Session = Depends(get_db),
+    current_user: User = Depends(get_current_user)
+):
+    """
+    Пополнение баланса пользователя
+    """
+    new_balance = Decimal(str(current_user.balance)) + operation.amount
+    current_user.balance = new_balance
+    db.commit()
+    db.refresh(current_user)
+    
+    return BalanceResponse(
+        balance=current_user.balance,
+        message=f"Баланс успешно пополнен на {operation.amount} монет"
+    )
+
+
+@router.post("/balance/withdraw", response_model=BalanceResponse)
+async def withdraw_balance(
+    operation: BalanceOperation,
+    db: Session = Depends(get_db),
+    current_user: User = Depends(get_current_user)
+):
+    """
+    Вывод средств с баланса пользователя
+    """
+    current_balance = Decimal(str(current_user.balance))
+    
+    if current_balance < operation.amount:
+        raise HTTPException(
+            status_code=status.HTTP_400_BAD_REQUEST,
+            detail=f"Недостаточно средств. Текущий баланс: {current_balance}"
+        )
+    
+    new_balance = current_balance - operation.amount
+    current_user.balance = new_balance
+    db.commit()
+    db.refresh(current_user)
+    
+    return BalanceResponse(
+        balance=current_user.balance,
+        message=f"Успешно выведено {operation.amount} монет"
+    )
+
+
+@router.get("/balance", response_model=BalanceResponse)
+async def get_balance(
+    current_user: User = Depends(get_current_user)
+):
+    """
+    Получение текущего баланса пользователя
+    """
+    return BalanceResponse(
+        balance=current_user.balance,
+        message="Текущий баланс"
+    )
 #

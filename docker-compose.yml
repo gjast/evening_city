@@ -1,9 +1,8 @@
-version: '3.8'
-
 services:
   postgres:
-    image: postgres
+    image: postgres:16
     container_name: auth_postgres
+    restart: always
     environment:
       POSTGRES_USER: niro
       POSTGRES_PASSWORD: niro
@@ -11,30 +10,62 @@ services:
     ports:
       - "5432:5432"
     volumes:
-      - postgres_data:/var/lib/postgresql
+      - postgres_data:/var/lib/postgresql/data
     networks:
       - microservices-network
     healthcheck:
-      test: ["CMD-SHELL", "pg_isready -U postgres"]
-      interval: 10s
+      test: ["CMD-SHELL", "pg_isready -U niro -d evening_city"]
+      interval: 5s
       timeout: 5s
       retries: 5
 
   auth_service:
     build: ./auth_service
+    container_name: auth_service
+    restart: always
     ports:
       - "8001:8001"
     environment:
-      - SECRET_KEY=your-secret-key-change-in-production
-      - DATABASE_URL=postgresql://postgres:postgres@postgres:5432/evening_city
-      - DB_HOST=postgres
-      - DB_PORT=5432
-      - DB_USER=postgres
-      - DB_PASSWORD=postgres
-      - DB_NAME=authdb
+      SECRET_KEY: 5d7da121d97c26009f2474d820c08cc49282aef7859b4e990d5fea134211769a
+      ALGORITHM: HS256
+      ACCESS_TOKEN_EXPIRE_MINUTES: 30
+      REFRESH_TOKEN_EXPIRE_DAYS: 7
+
+      DATABASE_URL: postgresql://niro:niro@postgres:5432/evening_city
+      DB_HOST: postgres
+      DB_PORT: 5432
+      DB_USER: niro
+      DB_PASSWORD: niro
+      DB_NAME: evening_city
+
+      CORS_ORIGINS: '["*"]'
     volumes:
       - ./auth_service:/app
     command: uvicorn main:app --host 0.0.0.0 --port 8001 --reload
+    depends_on:
+      postgres:
+        condition: service_healthy
+    networks:
+      - microservices-network
+
+  services_service:
+    build: ./services_service
+    container_name: services_service
+    restart: always
+    ports:
+      - "8002:8002"
+    environment:
+      DATABASE_URL: postgresql://niro:niro@postgres:5432/evening_city
+      DB_HOST: postgres
+      DB_PORT: 5432
+      DB_USER: niro
+      DB_PASSWORD: niro
+      DB_NAME: evening_city
+
+      CORS_ORIGINS: '["*"]'
+    volumes:
+      - ./services_service:/app
+    command: uvicorn main:app --host 0.0.0.0 --port 8002 --reload
     depends_on:
       postgres:
         condition: service_healthy

@@ -1,6 +1,7 @@
 from pydantic import BaseModel, EmailStr, Field
 from datetime import datetime
 from typing import Optional
+from decimal import Decimal
 
 
 class UserBase(BaseModel):
@@ -25,6 +26,7 @@ class UserUpdate(BaseModel):
 
 class UserResponse(UserBase):
     id: int
+    balance: Decimal = Decimal("0")
     is_active: bool
     is_verified: bool
     created_at: datetime
@@ -32,4 +34,13 @@ class UserResponse(UserBase):
     
     class Config:
         from_attributes = True
+
+
+class BalanceOperation(BaseModel):
+    amount: Decimal = Field(..., gt=0, description="Сумма операции (должна быть положительной)")
+
+
+class BalanceResponse(BaseModel):
+    balance: Decimal
+    message: str
 
